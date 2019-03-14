@@ -43,6 +43,7 @@ class SimpleMarkovChain():
         print ("Error Finding Event {}".format(data))
 
     def printChain(self):
+        print ("Chain: ")
         for event in self.events:
             event.printEvent()
 

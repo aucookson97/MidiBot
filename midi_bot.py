@@ -22,6 +22,7 @@ def loadRecipe(chain, file_name):
     track1 = pattern[1]
 
     for i in range(len(track1)):
+       # print (track1[i])
         if isinstance(track1[i], midi.events.NoteOnEvent) and track1[i].get_velocity() != 0:#("midi.NoteOnEvent" in str(note)):
             notes.append(track1[i])
 
@@ -39,6 +40,9 @@ def generateNewSong(chain, file_name, song_length):
     pattern = midi.Pattern()
     track = midi.Track()
     pattern.append(track)
+    
+    track.append(midi.TrackNameEvent(tick=0, text='Piano right', data=[80, 105, 97, 110, 111, 32, 114, 105, 103, 104, 116]))
+    track.append(midi.ProgramChangeEvent(tick=0, channel=0, data=[5]))
 
     first_note = chain.getRandomEvent()
 
@@ -48,6 +52,7 @@ def generateNewSong(chain, file_name, song_length):
     track.append(off)
 
     last_pitch = first_note
+
 
     for _ in range(song_length - 1):
         next_pitch = chain.getNextEvent(last_pitch)
@@ -59,6 +64,7 @@ def generateNewSong(chain, file_name, song_length):
         last_pitch = next_pitch
 
     #print (pattern)
+    track.append(midi.EndOfTrackEvent(tick=1))
     midi.write_midifile(file_name, pattern)
 
 
@@ -86,18 +92,18 @@ if __name__=="__main__":
     recipe_linkin2 = os.getcwd() + "\\MidiFiles\\LinkinPark\\Crawling.mid"
     recipe_linkin3 = os.getcwd() + "\\MidiFiles\\LinkinPark\\WhatIveDone.mid"
 
-    
-    result = os.getcwd() + "Song1_Elise.mid"
+    result = os.getcwd() + "\\MidiOutput\\" + "Song1_Test.mid"
 
-    chain = SimpleMarkovChain()
+    chain_notes = SimpleMarkovChain()
+    chain_lengths = SimpleMarkovChain(1)
 
-    loadRecipe(chain, recipe1)
-    #loadRecipe(chain, recipe2)
+    loadRecipe(chain_notes, chain_lengths recipe1)
+    #loadRecipe(chain, recipe_linkin1)
     #loadRecipe(chain, recipe3)
 
 
     #chain.printChain()
 
-    generateNewSong(chain, result, 200)
+    generateNewSong(chain, result, 100)
 
     playFile(result)

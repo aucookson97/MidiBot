@@ -23,6 +23,8 @@ FMAJ = [F, G, A, AS, C, D, E]
 DMIN = [D, E, F, G, A, AS, C]
 DEFAULT_KEY = [C, CS, D, DS, E, F, FS, G, GS, A, AS, B]
 
+beat = []
+
 def playFile(file_name):
     mixer.music.load(file_name)
     mixer.music.play()
@@ -69,46 +71,73 @@ def findNextNoteOn(notes, start):
 ##        else:
 ##            chain_notes.addChainEvent(notes[i].get_pitch(), notes[i+2].get_pitch())
 
-def generateNewSong(chain_notes, chain_lengths, file_name, song_length, key=DEFAULT_KEY):
+def extractBeat(file_name):
+    pattern = midi.read_midifile(file_name)
+    track1 = pattern[0]
+
+    beat = []
+
+    for i in range(len(track1)-1):
+        if (isinstance(track1[i], midi.events.NoteOnEvent)):
+            note = track1[i].get_pitch()
+            note_off = i+1
+            ticks = 0
+            while (note_off < len(track1) and track1[note_off].get_pitch() != note):
+                ticks += track1[note_off].tick
+                note_off += 1
+            ticks += track1[note_off].tick
+            beat.append((track1[i].tick, ticks))
+    return beat
+            
+
+        
+
+def generateNewSong(chain_notes, chain_lengths, track, beat, key=DEFAULT_KEY):
     
-    pattern = midi.Pattern()
-    track = midi.Track()
-    pattern.append(track)
-    
-    track.append(midi.TrackNameEvent(tick=0, text='Piano right', data=[80, 105, 97, 110, 111, 32, 114, 105, 103, 104, 116]))
+  #  track.append(midi.TrackNameEvent(tick=0, text='Piano right', data=[80, 105, 97, 110, 111, 32, 114, 105, 103, 104, 116]))
     track.append(midi.ProgramChangeEvent(tick=0, channel=0, data=[1]))
 
     first_note = chain_notes.getRandomEvent()
     while (not noteInKey(key, first_note)):
         first_note = chain_notes.getRandomEvent()
 
-    first_length = chain_lengths.getRandomEvent()
+    first_length = beat[0]#chain_lengths.getRandomEvent()
 
-    on = midi.NoteOnEvent(tick = 0, velocity = 100, pitch = first_note)
-    off = midi.NoteOnEvent(tick = first_length, velocity = 0, pitch = first_note)
+    on = midi.NoteOnEvent(tick = first_length[0], velocity = 100, pitch = first_note)
+    off = midi.NoteOnEvent(tick = first_length[1], velocity = 0, pitch = first_note)
     track.append(on)
     track.append(off)
 
     last_pitch = first_note
-    last_length = first_length
+    #last_length = first_length
 
-    for _ in range(song_length - 1):
+    for i in range(1, len(beat)):
         next_pitch = chain_notes.getNextEvent(last_pitch)
         while (not noteInKey(key, next_pitch)):
             next_pitch = chain_notes.getNextEvent(last_pitch)
-        next_length = chain_lengths.getNextEvent(last_length)
-        on = midi.NoteOnEvent(tick = 0, velocity = 100, pitch = next_pitch)
-        off = midi.NoteOnEvent(tick = next_length, velocity = 0, pitch = next_pitch)
+        next_length = beat[i]
+        on = midi.NoteOnEvent(tick = next_length[0], velocity = 100, pitch = next_pitch)
+        off = midi.NoteOnEvent(tick = next_length[1], velocity = 0, pitch = next_pitch)
         track.append(on)
         track.append(off)
 
         last_pitch = next_pitch
-        last_length = next_length
+
+##    for _ in range(song_length - 1):
+##        next_pitch = chain_notes.getNextEvent(last_pitch)
+##        while (not noteInKey(key, next_pitch)):
+##            next_pitch = chain_notes.getNextEvent(last_pitch)
+##        next_length = chain_lengths.getNextEvent(last_length)
+##        on = midi.NoteOnEvent(tick = 0, velocity = 100, pitch = next_pitch)
+##        off = midi.NoteOnEvent(tick = next_length, velocity = 0, pitch = next_pitch)
+##        track.append(on)
+##        track.append(off)
+##
+##        last_pitch = next_pitch
+##        last_length = next_length
 
     #print (pattern)
     track.append(midi.EndOfTrackEvent(tick=1))
-    midi.write_midifile(file_name, pattern)
-
 
 def noteInKey(key, note):
     root_note = note % 12 # There are 12 notes, so every note will be 0-11 when modded by 12, with C = 0
@@ -116,6 +145,9 @@ def noteInKey(key, note):
 
 if __name__=="__main__":
     mixer.init()
+
+    # Recipe to use as beat
+    recipe_beat = os.getcwd() + "\\MidiBeats\\beat1.mid"
 
     recipe1 = os.getcwd() + "\\MidiFiles\\Classical\\elise.mid"
 
@@ -130,27 +162,30 @@ if __name__=="__main__":
     recipe6 = os.getcwd() + "\\MidiFiles\\Classical\\beet27m2.mid"
     recipe7 = os.getcwd() + "\\MidiFiles\\Classical\\beet27m3.mid"
 
-
-    # Romance (FMAJ) Doesnt Work
-    recipe8 = os.getcwd() + "\\MidiFiles\\Classical\\be_roman.mid"
-
-    #recipe5 = os.getcwd() + "\\MidiFiles\\Beethoven\\rondo.mid"
-    #recipe6 = os.getcwd() + "\\MidiFiles\\Disney\\whole_new_world.mid"
-
-    result = os.getcwd() + "\\MidiOutput\\" + "Sonata8Dan.mid"
+    result = os.getcwd() + "\\MidiOutput\\" + "Song1EMAJ2.mid"
 
     chain_notes = SimpleMarkovChain()
     chain_lengths = SimpleMarkovChain()
 
-   # recipe_list = [recipe1, recipe2, recipe3, recipe4, recipe5, recipe6, recipe7]
-    recipe_list = [recipe8]
+    recipe_list = [recipe1, recipe2, recipe3, recipe4, recipe5, recipe6, recipe7]
 
     for recipe in recipe_list:
         loadRecipe(recipe, chain_notes, chain_lengths)
-   # loadRecipe(recipe2, chain_notes)
 
-    key = CMAJ
+    #chain_notes.printChain()
+    result_pattern = midi.Pattern()
+    result_track = midi.Track()
+    result_pattern.append(result_track)
 
-    generateNewSong(chain_notes, chain_lengths, result, 200)
+    pattern_beat = midi.read_midifile(recipe_beat)
+    for i in range(3):
+        result_track.append(pattern_beat[0][i])
+
+    beat = extractBeat(recipe_beat)
+    generateNewSong(chain_notes, chain_lengths, result_track, beat, EMAJ)
+    midi.write_midifile(result, result_pattern)
+
+    for event in result_track:
+        print (event)
 
     playFile(result)
